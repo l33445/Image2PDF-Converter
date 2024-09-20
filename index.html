@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>图片转PDF转换器</title>
+    <title>增强型图片转PDF转换器</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
@@ -290,10 +290,79 @@
             document.getElementById('cancelBtn').innerText = currentTranslations.cancelBtn;
         }
 
-        function convertToPdf() {
-            const pdf = new jspdf.jsPDF();
-            // Add images to PDF...
-            alert('PDF conversion not implemented in this demo.');
+        async function convertToPdf() {
+            if (selectedFiles.length === 0) {
+                alert(currentLanguage === 'zh' ? '请先选择图片' : 'Please select images first');
+                return;
+            }
+
+            const pdf = new jspdf.jsPDF({
+                orientation: document.getElementById('pageOrientation').value,
+                unit: 'mm',
+                format: document.getElementById('pageSize').value
+            });
+
+            const pdfName = document.getElementById('pdfName').value || 'converted';
+
+            const progressBar = document.querySelector('.progress-bar');
+            const progressBarFill = document.querySelector('.progress-bar-fill');
+            progressBar.style.display = 'block';
+
+            for (let i = 0; i < selectedFiles.length; i++) {
+                const file = selectedFiles[i];
+                const img = await createImageFromFile(file);
+                
+                if (i > 0) {
+                    pdf.addPage();
+                }
+
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                const imgWidth = img.width;
+                const imgHeight = img.height;
+
+                let finalWidth, finalHeight;
+
+                if (imgWidth / pageWidth > imgHeight / pageHeight) {
+                    finalWidth = pageWidth;
+                    finalHeight = (imgHeight * pageWidth) / imgWidth;
+                } else {
+                    finalHeight = pageHeight;
+                    finalWidth = (imgWidth * pageHeight) / imgHeight;
+                }
+
+                const x = (pageWidth - finalWidth) / 2;
+                const y = (pageHeight - finalHeight) / 2;
+
+                pdf.addImage(img, 'JPEG', x, y, finalWidth, finalHeight);
+
+                // 更新进度条
+                const progress = ((i + 1) / selectedFiles.length) * 100;
+                progressBarFill.style.width = `${progress}%`;
+            }
+
+            // 保存 PDF
+            pdf.save(`${pdfName}.pdf`);
+
+            // 隐藏进度条
+            progressBar.style.display = 'none';
+            progressBarFill.style.width = '0%';
+
+            alert(currentLanguage === 'zh' ? 'PDF 已生成' : 'PDF has been generated');
+        }
+
+        function createImageFromFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => resolve(img);
+                    img.onerror = reject;
+                    img.src = event.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
         }
 
         imageInput.addEventListener('change', (event) => {
